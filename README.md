@@ -15,10 +15,10 @@
 
 ## 🚀 Installation & Setup
 
-SelfHeal requires Python 3.11+. Install the released CLI from PyPI:
+SelfHeal requires Python 3.11+. The recommended way to install it is using `pipx` to isolate dependencies:
 
 ```bash
-pip install selfheal
+pipx install selfheal
 ```
 
 For local development, use `uv` to create the environment from the repository checkout:
@@ -84,9 +84,11 @@ SelfHeal features a rich CLI for quick operations.
 *   `selfheal vision /path/to/photo.jpg` - Extract tasks from an image.
 
 **Daemon Management:**
-*   `selfheal daemon install` - Installs and starts the `systemd` user service for background execution.
+SelfHeal requires a background daemon to sync calendars and regenerate schedules autonomously.
+*   `selfheal daemon start` - Start the daemon in the background (works on macOS and Linux).
+*   `selfheal daemon stop` - Stop the background daemon.
 *   `selfheal daemon status` - Check if the background daemon is running.
-*   `selfheal daemon restart` - Restart the background service.
+*   `selfheal daemon install` - (Linux only) Installs and starts the `systemd` user service for persistent background execution.
 
 **Sync & Integrations:**
 *   `selfheal sync` - Force an immediate sync across CalDAV/Google, Obsidian, and Wallpaper engines.
