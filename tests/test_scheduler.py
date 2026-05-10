@@ -60,7 +60,7 @@ def test_generate_schedule_respects_calendar_blockers():
         use_ai=False,
     )
 
-    assert result[0]["start_hour"] != 9
+    assert result[0]["start_time"] != "09:00"
 
 
 def test_generate_schedule_sorts_priority_into_peak_before_low():
@@ -74,8 +74,8 @@ def test_generate_schedule_sorts_priority_into_peak_before_low():
 
     high = next(item for item in result if item["name"] == "High")
     low = next(item for item in result if item["name"] == "Low")
-    assert high["start_hour"] == 9
-    assert low["start_hour"] == 10
+    assert high["start_time"] == "09:00"
+    assert low["start_time"] == "10:00"
 
 
 def test_generate_schedule_returns_empty_without_life_model():
@@ -112,8 +112,8 @@ def test_schedule_item_to_db_preserves_external_identity(temp_db):
         "name": "ClickUp task",
         "priority": "high",
         "estimated_minutes": 45,
-        "start_hour": 9,
-        "end_hour": 10,
+        "start_time": "09:00",
+        "end_time": "10:00",
         "source": "clickup",
         "external_id": "cu_123",
         "external_url": "https://app.clickup.com/t/cu_123",
@@ -216,8 +216,8 @@ def test_generate_schedule_task_adds_clickup_scheduled_comment(monkeypatch):
                 "name": "ClickUp Task",
                 "source": "clickup",
                 "external_id": "cu_123",
-                "start_hour": 9,
-                "end_hour": 10,
+                "start_time": "09:00",
+                "end_time": "10:00",
             }
         ], True),
     )

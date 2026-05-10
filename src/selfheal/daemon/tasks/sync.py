@@ -56,7 +56,11 @@ def update_wallpaper_task() -> dict[str, Any]:
     """Update wallpaper data json for external engines."""
     try:
         from ...wallpaper import update_wallpaper_data
+        from ...wallpaper.generator import apply_wallpaper, generate_wallpaper
         update_wallpaper_data()
+        path = generate_wallpaper()
+        if path:
+            apply_wallpaper(path)
         return {"updated": True}
     except Exception:
         logger.exception("Wallpaper update task failed")

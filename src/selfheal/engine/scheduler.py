@@ -4,6 +4,7 @@ import json
 import logging
 import re
 import sqlite3
+import datetime as dt
 from datetime import date
 from typing import Any
 
@@ -50,6 +51,61 @@ def get_schedule_task_candidates(
     return candidates
 
 
+def _build_continuous_blocks(hours: list[dict], today: date) -> list[dict]:
+    blocks = []
+    if not hours: return blocks
+    current_start = None
+    current_end = None
+    current_status = None
+    
+    for h in sorted(hours, key=lambda x: x["hour"]):
+        if h["status"] in ("committed",):
+            continue
+            
+        slot_start = dt.datetime.combine(today, dt.time(h["hour"], 0))
+        slot_end = slot_start + dt.timedelta(hours=1)
+        
+        if current_status == h["status"] and current_end == slot_start:
+            current_end = slot_end
+        else:
+            if current_start is not None:
+                blocks.append({"start": current_start, "end": current_end, "status": current_status})
+            current_start = slot_start
+            current_end = slot_end
+            current_status = h["status"]
+            
+    if current_start is not None:
+         blocks.append({"start": current_start, "end": current_end, "status": current_status})
+    return blocks
+
+def _allocate_task(blocks: list[dict], needed_minutes: int, preferred_statuses: list[str]) -> tuple[str, str] | tuple[None, None]:
+    for status in preferred_statuses:
+        for i, block in enumerate(blocks):
+            if block["status"] == status:
+                block_mins = int((block["end"] - block["start"]).total_seconds() / 60)
+                if block_mins >= needed_minutes:
+                    allocated_start = block["start"]
+                    allocated_end = allocated_start + dt.timedelta(minutes=needed_minutes)
+                    
+                    block["start"] = allocated_end
+                    if block["start"] >= block["end"]:
+                        blocks.pop(i)
+                    return allocated_start.strftime("%H:%M"), allocated_end.strftime("%H:%M")
+    
+    # Fallback to any block that fits
+    for i, block in enumerate(blocks):
+        block_mins = int((block["end"] - block["start"]).total_seconds() / 60)
+        if block_mins >= needed_minutes:
+            allocated_start = block["start"]
+            allocated_end = allocated_start + dt.timedelta(minutes=needed_minutes)
+            
+            block["start"] = allocated_end
+            if block["start"] >= block["end"]:
+                blocks.pop(i)
+            return allocated_start.strftime("%H:%M"), allocated_end.strftime("%H:%M")
+            
+    return None, None
+
 def generate_schedule(
     *,
     today: date,
@@ -62,10 +118,7 @@ def generate_schedule(
         return [], False
 
     hours = get_available_hours(life_model, calendar_events=calendar_events)
-    free_slots = [h for h in hours if h["status"] in ("free", "peak", "low")]
-    peak_slots = [h for h in free_slots if h["status"] == "peak"]
-    low_slots = [h for h in free_slots if h["status"] == "low"]
-    normal_slots = [h for h in free_slots if h["status"] == "free"]
+    blocks = _build_continuous_blocks(hours, today)
 
     schedule: list[dict[str, Any]] = []
     sorted_candidates = sorted(
@@ -77,24 +130,18 @@ def generate_schedule(
 
     for candidate in sorted_candidates:
         estimated_minutes = candidate.get("estimated_minutes") or candidate.get("time_estimate") or 30
-        needed_hours = max(1, -(-int(estimated_minutes) // 60))
+        
+        priority = candidate.get("priority", "medium")
+        if priority in ("critical", "high"):
+            preferred_statuses = ["peak", "free", "low"]
+        else:
+            preferred_statuses = ["low", "free", "peak"]
+            
+        start_time, end_time = _allocate_task(blocks, estimated_minutes, preferred_statuses)
+        if start_time and end_time:
+            schedule.append(_make_item(candidate, start_time, end_time))
 
-        preferred = candidate.get("preferred_time")
-        placed = False
-
-        if preferred:
-            placed = _try_place_at(schedule, free_slots, preferred, candidate, needed_hours)
-
-        if not placed and candidate.get("priority") in ("critical", "high") and peak_slots:
-            placed = _try_place_in_slots(schedule, peak_slots, candidate, needed_hours)
-
-        if not placed and low_slots and candidate.get("priority") in ("low", "medium"):
-            placed = _try_place_in_slots(schedule, low_slots, candidate, needed_hours)
-
-        if not placed:
-            _try_place_in_slots(schedule, normal_slots + peak_slots + low_slots, candidate, needed_hours)
-
-    schedule.sort(key=lambda item: item["start_hour"])
+    schedule.sort(key=lambda item: item["start_time"])
 
     ai_success = False
     if use_ai:
@@ -141,10 +188,10 @@ def schedule_item_to_db(
         (
             target_date.isoformat(),
             task_id,
-            f"{schedule_item['start_hour']:02d}:00",
-            f"{schedule_item['end_hour']:02d}:00",
-            f"{schedule_item['start_hour']:02d}:00",
-            f"{schedule_item['end_hour']:02d}:00",
+            schedule_item.get("start_time", "09:00"),
+            schedule_item.get("end_time", "09:30"),
+            schedule_item.get("start_time", "09:00"),
+            schedule_item.get("end_time", "09:30"),
         ),
     )
     return task_id
@@ -319,60 +366,7 @@ def _update_task_from_schedule_item(
     )
 
 
-def _try_place_at(
-    schedule: list[dict[str, Any]],
-    free_slots: list[dict[str, Any]],
-    preferred_time: str,
-    candidate: dict[str, Any],
-    needed_hours: int,
-) -> bool:
-    try:
-        start_str, _ = preferred_time.split("-")
-        start_h = int(start_str.split(":")[0])
-    except (ValueError, IndexError):
-        return False
-
-    available = [s for s in free_slots if s["hour"] >= start_h and not _is_occupied(schedule, s["hour"])]
-    if len(available) < needed_hours:
-        return False
-
-    for i in range(needed_hours):
-        schedule.append(_make_item(candidate, available[i]["hour"], available[i]["hour"] + 1))
-    return True
-
-
-def _try_place_in_slots(
-    schedule: list[dict[str, Any]],
-    slots: list[dict[str, Any]],
-    candidate: dict[str, Any],
-    needed_hours: int,
-) -> bool:
-    consecutive = _find_consecutive(slots, schedule, needed_hours)
-    if consecutive:
-        for slot in consecutive:
-            schedule.append(_make_item(candidate, slot["hour"], slot["hour"] + 1))
-        return True
-    return False
-
-
-def _find_consecutive(
-    slots: list[dict[str, Any]],
-    schedule: list[dict[str, Any]],
-    needed: int,
-) -> list[dict[str, Any]] | None:
-    for i in range(len(slots) - needed + 1):
-        window = slots[i:i + needed]
-        if all(not _is_occupied(schedule, s["hour"]) for s in window):
-            if window[-1]["hour"] - window[0]["hour"] == needed - 1:
-                return window
-    return None
-
-
-def _is_occupied(schedule: list[dict[str, Any]], hour: int) -> bool:
-    return any(s["start_hour"] <= hour < s["end_hour"] for s in schedule)
-
-
-def _make_item(candidate: dict[str, Any], start: int, end: int) -> dict[str, Any]:
+def _make_item(candidate: dict[str, Any], start_time: str, end_time: str) -> dict[str, Any]:
     emojis = {
         "Fitness": "🏃", "Learn AI": "🤖", "Job Applications": "💼",
         "Code Practice": "💻", "Reading": "📖", "Study": "📚",
@@ -382,8 +376,8 @@ def _make_item(candidate: dict[str, Any], start: int, end: int) -> dict[str, Any
         "name": candidate.get("name", "Task"),
         "emoji": candidate.get("emoji", emojis.get(candidate.get("name", ""), "📌")),
         "priority": candidate.get("priority", "medium"),
-        "start_hour": start,
-        "end_hour": end,
+        "start_time": start_time,
+        "end_time": end_time,
         "estimated_minutes": estimated_minutes,
         "status": "pending",
         "schedule": candidate.get("schedule", "dynamic"),

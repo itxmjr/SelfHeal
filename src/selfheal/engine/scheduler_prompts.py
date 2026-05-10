@@ -21,8 +21,8 @@ Output only a JSON list of tasks in this exact format:
     "name": "Task Name",
     "emoji": "emoji",
     "priority": "critical|high|medium|low",
-    "start_hour": 7,
-    "end_hour": 8,
+    "start_time": "09:15",
+    "end_time": "10:15",
     "estimated_minutes": 60,
     "reasoning": "Short explanation of why it's placed here"
   }},

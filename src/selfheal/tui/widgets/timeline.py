@@ -8,34 +8,30 @@ from textual.widgets import DataTable, Static
 
 class TimelineTable(DataTable):
     def on_mount(self):
-        self.add_columns("Hour", "Block", "Task", "Priority", "Blocked By")
+        self.add_columns("Time", "Block", "Task", "Priority", "Blocked By")
 
     def set_tasks(self, tasks: list[dict]):
         self.clear(columns=False)
-        now_hour = datetime.now().hour
+        now_time = datetime.now().strftime("%H:%M")
 
-        slots: dict[int, list[dict]] = defaultdict(list)
+        scheduled: list[dict] = []
         unscheduled: list[dict] = []
 
         for t in tasks:
-            start = t.get("scheduled_start")
-            if start:
-                try:
-                    h = int(start.split(":")[0])
-                    slots[h].append(t)
-                except (ValueError, IndexError):
-                    unscheduled.append(t)
+            if t.get("scheduled_start"):
+                scheduled.append(t)
             else:
                 unscheduled.append(t)
+                
+        scheduled.sort(key=lambda x: x["scheduled_start"])
 
-        for hour in sorted(slots):
-            for t in slots[hour]:
-                self._add_task_row(t, hour, now_hour)
+        for t in scheduled:
+            self._add_task_row(t, t["scheduled_start"], t.get("scheduled_end"), now_time)
 
         for t in unscheduled:
-            self._add_task_row(t, None, now_hour)
+            self._add_task_row(t, None, None, now_time)
 
-    def _add_task_row(self, t: dict, hour: int | None, now_hour: int):
+    def _add_task_row(self, t: dict, start_time: str | None, end_time: str | None, now_time: str):
         status = t.get("status", "pending")
         is_blocked = t.get("is_blocked")
         is_done = status == "done"
@@ -50,10 +46,10 @@ class TimelineTable(DataTable):
         depends_on_names = t.get("depends_on_names", "")
         blocked_text = f"[yellow]{depends_on_names}[/]" if depends_on_names else ("[red]unmet deps[/]" if is_blocked else "[dim]-[/]")
 
-        hour_str = f"{hour:02d}:00" if hour is not None else "--:--"
-        key = f"{hour_str}_{task_id}" if hour is not None else f"xx_{task_id}"
+        time_str = f"{start_time}-{end_time}" if start_time and end_time else "--:--"
+        key = f"{start_time}_{task_id}" if start_time is not None else f"xx_{task_id}"
 
-        is_current = hour is not None and not is_done and not is_blocked and hour <= now_hour < hour + 1
+        is_current = start_time is not None and end_time is not None and not is_done and not is_blocked and start_time <= now_time < end_time
 
         if is_current:
             block_cell = "[bold white on dark_green]█[/]"
@@ -68,7 +64,7 @@ class TimelineTable(DataTable):
             block_cell = "[cyan]█[/]"
             name_cell = name
 
-        self.add_row(hour_str, block_cell, name_cell, priority_text, blocked_text, key=key)
+        self.add_row(time_str, block_cell, name_cell, priority_text, blocked_text, key=key)
 
 
 class DependencyChain(Static):

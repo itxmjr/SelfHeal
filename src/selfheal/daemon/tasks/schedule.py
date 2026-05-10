@@ -34,6 +34,6 @@ def annotate_clickup_schedule(schedule: list[dict[str, Any]]) -> None:
     for item in schedule:
         if item.get("source") != "clickup" or not item.get("external_id"):
             continue
-        start = f"{int(item['start_hour']):02d}:00"
-        end = f"{int(item['end_hour']):02d}:00"
+        start = item.get("start_time", "00:00")
+        end = item.get("end_time", "00:00")
         add_clickup_task_comment(str(item["external_id"]), f"Scheduled by SelfHeal: {start}-{end}")
