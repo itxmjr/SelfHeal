@@ -222,6 +222,7 @@ def test_generate_schedule_task_adds_clickup_scheduled_comment(monkeypatch):
         ], True),
     )
     monkeypatch.setattr(schedule_task, "add_clickup_task_comment", lambda task_id, comment: comments.append((task_id, comment)))
+    monkeypatch.setattr(schedule_task, "update_clickup_task_dates", lambda *args: {})
 
     result, _ = schedule_task.generate_schedule_task(date(2026, 5, 4))
 

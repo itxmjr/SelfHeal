@@ -7,6 +7,7 @@ from typing import Any
 import httpx
 
 from selfheal import ClickUpError, retry_sync
+from selfheal.config import load_config
 
 
 CLICKUP_API_BASE_URL = "https://api.clickup.com/api/v2"
@@ -14,9 +15,10 @@ CLICKUP_TASK_PAGE_SIZE = 100
 
 
 def is_clickup_configured() -> bool:
+    config = load_config()
     return bool(
         os.environ.get("SELFHEAL_CLICKUP_API_TOKEN")
-        and os.environ.get("SELFHEAL_CLICKUP_LIST_ID")
+        and config.get("clickup", {}).get("list_ids")
     )
 
 
@@ -32,11 +34,24 @@ def get_clickup_client():
     )
 
 
+def _resolve_list_ids(list_ids: list[str] | None = None) -> list[str]:
+    if list_ids:
+        return list_ids
+    config = load_config()
+    resolved = config.get("clickup", {}).get("list_ids")
+    if not resolved:
+        raise ClickUpError("ClickUp list IDs are not configured.")
+    return resolved
+
+
 def _resolve_list_id(list_id: str | None) -> str:
-    resolved = list_id or os.environ.get("SELFHEAL_CLICKUP_LIST_ID")
+    if list_id:
+        return list_id
+    config = load_config()
+    resolved = config.get("clickup", {}).get("list_ids")
     if not resolved:
         raise ClickUpError("ClickUp list ID is not configured.")
-    return resolved
+    return resolved[0]
 
 
 @retry_sync(max_attempts=3, base_delay=1, max_delay=4)
@@ -119,23 +134,25 @@ def parse_clickup_task(task: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def list_clickup_tasks(list_id: str | None = None, include_closed: bool = False) -> list[dict[str, Any]]:
-    resolved_list_id = _resolve_list_id(list_id)
+def list_clickup_tasks(list_ids: list[str] | None = None, include_closed: bool = False) -> list[dict[str, Any]]:
+    resolved_list_ids = _resolve_list_ids(list_ids)
     all_tasks: list[dict[str, Any]] = []
-    page = 0
-    while True:
-        data = _clickup_request(
-            "GET",
-            f"/list/{resolved_list_id}/task",
-            params={"include_closed": str(include_closed).lower(), "page": page},
-        )
-        tasks = data.get("tasks", [])
-        if not isinstance(tasks, list):
-            raise ClickUpError("ClickUp list tasks response did not include a task list.")
-        all_tasks.extend(parse_clickup_task(task) for task in tasks if isinstance(task, dict))
-        if not tasks or len(tasks) < CLICKUP_TASK_PAGE_SIZE:
-            break
-        page += 1
+    
+    for list_id in resolved_list_ids:
+        page = 0
+        while True:
+            data = _clickup_request(
+                "GET",
+                f"/list/{list_id}/task",
+                params={"include_closed": str(include_closed).lower(), "page": page},
+            )
+            tasks = data.get("tasks", [])
+            if not isinstance(tasks, list):
+                raise ClickUpError("ClickUp list tasks response did not include a task list.")
+            all_tasks.extend(parse_clickup_task(task) for task in tasks if isinstance(task, dict))
+            if not tasks or len(tasks) < CLICKUP_TASK_PAGE_SIZE:
+                break
+            page += 1
     return all_tasks
 
 
@@ -145,6 +162,23 @@ def update_clickup_task_status(task_id: str, status: str) -> dict[str, Any]:
     if not status:
         raise ClickUpError("ClickUp status is required to update a task.")
     return _clickup_request("PUT", f"/task/{task_id}", json={"status": status})
+
+
+def update_clickup_task_dates(task_id: str, start_dt: datetime | None, due_dt: datetime | None) -> dict[str, Any]:
+    if not task_id:
+        raise ClickUpError("ClickUp task ID is required to update dates.")
+    
+    payload: dict[str, Any] = {}
+    if start_dt:
+        # ClickUp expects milliseconds
+        payload["start_date"] = int(start_dt.timestamp() * 1000)
+    if due_dt:
+        payload["due_date"] = int(due_dt.timestamp() * 1000)
+        
+    if not payload:
+        return {}
+        
+    return _clickup_request("PUT", f"/task/{task_id}", json=payload)
 
 
 def add_clickup_task_comment(task_id: str, comment: str) -> dict[str, Any]:

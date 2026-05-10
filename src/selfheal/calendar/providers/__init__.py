@@ -26,6 +26,7 @@ from .clickup import (
     list_clickup_events,
     list_clickup_tasks as list_clickup_tasks,
     update_clickup_task_status as update_clickup_task_status,
+    update_clickup_task_dates as update_clickup_task_dates,
 )
 
 logger = logging.getLogger(__name__)

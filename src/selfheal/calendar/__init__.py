@@ -17,6 +17,7 @@ from .providers import (
     list_clickup_events,
     list_clickup_tasks,
     update_clickup_task_status,
+    update_clickup_task_dates,
 )
 
 __all__ = [
@@ -36,4 +37,5 @@ __all__ = [
     "list_clickup_events",
     "list_clickup_tasks",
     "update_clickup_task_status",
+    "update_clickup_task_dates",
 ]

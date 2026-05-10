@@ -32,7 +32,7 @@ DEFAULT_CONFIG = {
         "vault_path": "",
     },
     "clickup": {
-        "list_id": "",
+        "list_ids": [],
     },
     "wallpaper": {
         "enabled": True,
@@ -73,8 +73,12 @@ def _apply_env_overrides(config: dict[str, Any]) -> dict[str, Any]:
         config["obsidian"]["vault_path"] = os.environ["SELFHEAL_OBSIDIAN_VAULT_PATH"]
 
     # ClickUp
-    if "SELFHEAL_CLICKUP_LIST_ID" in os.environ:
-        config["clickup"]["list_id"] = os.environ["SELFHEAL_CLICKUP_LIST_ID"]
+    if "SELFHEAL_CLICKUP_LIST_IDS" in os.environ:
+        config["clickup"]["list_ids"] = [
+            x.strip() for x in os.environ["SELFHEAL_CLICKUP_LIST_IDS"].split(",") if x.strip()
+        ]
+    elif "SELFHEAL_CLICKUP_LIST_ID" in os.environ:
+        config["clickup"]["list_ids"] = [os.environ["SELFHEAL_CLICKUP_LIST_ID"]]
 
     # Wallpaper
     if "SELFHEAL_WALLPAPER_ENABLED" in os.environ:
