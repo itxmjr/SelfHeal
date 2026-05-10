@@ -1,0 +1,17 @@
+#!/usr/bin/env python3
+"""Run SelfHeal daemon in foreground (for systemd)."""
+from __future__ import annotations
+
+import sys
+import os
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
+
+os.environ.setdefault("SELFHEAL_CONFIG", os.path.expanduser("~/.config/selfheal"))
+os.environ.setdefault("SELFHEAL_DATA", os.path.expanduser("~/.local/share/selfheal"))
+
+from selfheal.daemon import DaemonServer
+
+if __name__ == "__main__":
+    srv = DaemonServer()
+    srv.start()

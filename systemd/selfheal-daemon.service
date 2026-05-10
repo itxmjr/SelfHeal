@@ -1,0 +1,15 @@
+[Unit]
+Description=SelfHeal Background Daemon
+PartOf=selfheal.target
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/selfheal daemon serve
+Restart=on-failure
+RestartSec=10
+Environment=SELFHEAL_CONFIG=%h/.config/selfheal
+Environment=SELFHEAL_DATA=%h/.local/share/selfheal
+
+[Install]
+WantedBy=selfheal.target
