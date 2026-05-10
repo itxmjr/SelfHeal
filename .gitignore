@@ -1,0 +1,33 @@
+# Environments
+.env
+.venv/
+venv/
+env/
+.Python
+
+# SQLite Databases
+*.db
+*.sqlite
+*.sqlite3
+selfheal.db
+
+# Cache and Compiled code
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Logs and Data
+logs/
+*.log
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+
+# Sisyphus/Other local dirs
+.sisyphus/
+config.yaml

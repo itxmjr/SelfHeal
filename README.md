@@ -1,0 +1,115 @@
+# SelfHeal
+
+**SelfHeal** is a minimalist, AI-driven personal productivity daemon and command center. It acts as an autonomous life manager: it interviews you to build a "Life Model," schedules your day dynamically around your existing calendar commitments, continuously adjusts to your rhythm, and provides a polished Terminal UI (TUI) to track your progress.
+
+## Core Features
+*   **🧠 Life Model Intake:** An interactive CLI interview maps out your core goals, priorities, and available hours.
+*   **🤖 AI-Assisted Scheduling:** Uses local (Ollama) or remote (NVIDIA NIM) LLMs to intelligently slot tasks into your daily schedule based on priority, duration, and dependencies.
+*   **📅 Calendar Integration:** Full two-way awareness using Google Calendar (OAuth) or generic CalDAV. Scheduled events act as hard blockers for the AI engine.
+*   **🖥️ Command Center TUI:** A responsive Textual-based terminal dashboard to visualize your timeline, history, and productivity score.
+*   **⚡ Background Daemon:** A lightweight systemd-compatible background process that automatically syncs calendars, regenerates schedules at dawn, and issues desktop notifications.
+*   **📝 Obsidian Sync:** Automatically exports daily performance reports and schedules as markdown notes into your Obsidian vault.
+*   **👁️ Vision Tasks:** Snap a photo of a whiteboard or handwritten to-do list, and SelfHeal uses vision models to extract them into actionable tasks.
+
+---
+
+## 🚀 Installation & Setup
+
+SelfHeal requires Python 3.11+. Install the released CLI from PyPI:
+
+```bash
+pip install selfheal
+```
+
+For local development, use `uv` to create the environment from the repository checkout:
+
+```bash
+uv sync
+```
+
+### 2. Configure Environment
+Copy the example environment file and customize it to enable specific LLMs, Calendars, and features:
+```bash
+cp .env.example .env
+# Edit .env with your favorite editor
+nano .env
+```
+*(By default, SelfHeal will attempt to use NVIDIA NIM as the provider, but Ollama is highly recommended for full privacy).*
+
+### 3. Initialize Your Life Model
+Run the interview to let the AI learn about your goals and schedule.
+
+```bash
+selfheal interview
+```
+
+From a development checkout, use:
+
+```bash
+uv run selfheal interview
+```
+
+### 4. Authenticate Calendar (Optional but recommended)
+If you are using Google Calendar:
+1. Place your Google Cloud API `credentials.json` into `~/.config/selfheal/google_credentials.json`.
+2. Run the authentication flow:
+```bash
+uv run selfheal calendar auth
+```
+
+---
+
+## 💻 Usage
+
+The default command opens the Terminal UI:
+
+```bash
+selfheal
+```
+
+From a development checkout, use:
+
+```bash
+uv run selfheal
+```
+
+### CLI Commands
+SelfHeal features a rich CLI for quick operations.
+
+**Task Management:**
+*   `selfheal today` - View today's schedule and score.
+*   `selfheal next` - View the immediate next action to take.
+*   `selfheal add "Read 20 pages" --priority high` - Quickly inject a task.
+*   `selfheal done "Read"` - Mark a task as done using fuzzy matching.
+*   `selfheal vision /path/to/photo.jpg` - Extract tasks from an image.
+
+**Daemon Management:**
+*   `selfheal daemon install` - Installs and starts the `systemd` user service for background execution.
+*   `selfheal daemon status` - Check if the background daemon is running.
+*   `selfheal daemon restart` - Restart the background service.
+
+**Sync & Integrations:**
+*   `selfheal sync` - Force an immediate sync across CalDAV/Google, Obsidian, and Wallpaper engines.
+*   `selfheal calendar sync` - Pull calendar events into the local timeline.
+
+---
+
+## 🛠️ Architecture
+
+SelfHeal is highly modularized under the `src/selfheal/` package:
+*   `cli/` - Typer-based subcommand structure.
+*   `tui/` - Textual application and widgets (Dashboard, Schedule, History).
+*   `engine/` - AI Scheduling prompts, Heuristic fallback logic, and the Daily Scorer.
+*   `daemon/` - Unix socket IPC server and background task loops.
+*   `calendar/` - Provider abstractions for Google and CalDAV.
+
+Configuration lives in `~/.config/selfheal/`, and databases/logs live in `~/.local/share/selfheal/`.
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! Please ensure you run the test suite before submitting pull requests:
+```bash
+uv run pytest -v
+```
