@@ -17,13 +17,14 @@ CLICKUP_TASK_PAGE_SIZE = 100
 def is_clickup_configured() -> bool:
     config = load_config()
     return bool(
-        os.environ.get("SELFHEAL_CLICKUP_API_TOKEN")
+        config.get("clickup", {}).get("api_token")
         and config.get("clickup", {}).get("list_ids")
     )
 
 
 def get_clickup_client():
-    token = os.environ.get("SELFHEAL_CLICKUP_API_TOKEN")
+    config = load_config()
+    token = config.get("clickup", {}).get("api_token")
     if not token:
         raise ClickUpError("ClickUp API token is not configured.")
 

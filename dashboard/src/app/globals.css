@@ -1,0 +1,145 @@
+:root {
+  --background: #050505;
+  --foreground: #ffffff;
+  --accent: #ffffff;
+  --muted: #333333;
+  --dim: #111111;
+  --success: #00ff00;
+  --warning: #ffff00;
+  --error: #ff0000;
+  --font-mono: 'Geist Mono', monospace;
+  
+  /* Responsive Tokens */
+  --padding-page: 2rem;
+  --dot-size: 6px;
+  --dot-gap: 4px;
+}
+
+@media (max-width: 768px) {
+  :root {
+    --padding-page: 1rem;
+    --dot-size: 4px;
+    --dot-gap: 2px;
+  }
+}
+
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-mono);
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+main {
+  min-height: 100vh;
+  padding: var(--padding-page);
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+h1, h2, h3 {
+  font-weight: 300;
+  letter-spacing: -0.05em;
+  text-transform: uppercase;
+}
+
+h1 { font-size: clamp(1.5rem, 5vw, 2.5rem); }
+h2 { font-size: clamp(2rem, 8vw, 4rem); }
+h3 { font-size: 1rem; color: var(--muted); }
+
+.card {
+  background: var(--dim);
+  border: 1px solid var(--muted);
+  padding: clamp(1rem, 3vw, 1.5rem);
+  border-radius: 4px;
+}
+
+/* Dot Grid Optimization */
+.dot-grid {
+  display: grid;
+  grid-template-columns: repeat(60, 1fr);
+  gap: var(--dot-gap);
+  width: 100%;
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
+}
+
+/* Custom Scrollbar for the grid */
+.dot-grid::-webkit-scrollbar {
+  height: 2px;
+}
+.dot-grid::-webkit-scrollbar-thumb {
+  background: var(--muted);
+}
+
+.dot {
+  width: var(--dot-size);
+  height: var(--dot-size);
+  border-radius: 50%;
+  background: var(--muted);
+  flex-shrink: 0;
+}
+
+.dot.active {
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent);
+}
+
+.dot.done {
+  background: var(--muted);
+  opacity: 0.2;
+}
+
+.task-list {
+  list-style: none;
+  margin-top: 1.5rem;
+}
+
+.task-item {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 0;
+  border-bottom: 1px solid var(--muted);
+}
+
+@media (max-width: 480px) {
+  .task-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+}
+
+.task-time {
+  min-width: 80px;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.task-name {
+  flex: 1;
+  font-size: 0.9rem;
+}
+
+.task-status {
+  min-width: 80px;
+  text-align: right;
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+}
+
+@media (max-width: 480px) {
+  .task-status {
+    text-align: left;
+  }
+}

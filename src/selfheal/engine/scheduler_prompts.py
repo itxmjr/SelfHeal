@@ -14,6 +14,7 @@ Optimization Goals:
 3. Buffer: Ensure there is enough transition time between heavy tasks.
 4. Dependencies: Ensure prerequisite tasks are scheduled before dependent ones.
 5. Realism: Don't overstuff the day; leave breathing room.
+6. Atomic Tasks: If a task's estimated_minutes is > 90 minutes, SPLIT it into multiple smaller blocks (e.g., "Task (Part 1)", "Task (Part 2)"). No single block should exceed 90 minutes for better focus.
 
 Output only a JSON list of tasks in this exact format:
 [

@@ -1,36 +1,16 @@
 from __future__ import annotations
 
-import re
 from typing import Any
-
-import yaml
 from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text
 
-from ..config import save_life_model, load_life_model
-from ..llm import get_llm_with_fallback
-from ..obsidian import save_interview_to_obsidian
-from .prompts import SYSTEM_PROMPT, FOLLOW_UP_PROMPT, REGENERATE_PROMPT
+from .session import InterviewSession
 
 console = Console()
 
-
 def run_interview(regenerate: bool = False) -> dict[str, Any] | None:
-    llm = get_llm_with_fallback()
-    messages: list[dict[str, str]] = []
-
-    if regenerate:
-        current = load_life_model()
-        if current:
-            current_yaml = yaml.dump(current, default_flow_style=False)
-            system_msg = REGENERATE_PROMPT.format(current_model=current_yaml)
-        else:
-            system_msg = SYSTEM_PROMPT
-    else:
-        system_msg = SYSTEM_PROMPT
-
-    messages.append({"role": "system", "content": system_msg})
+    session = InterviewSession(regenerate=regenerate)
 
     console.print()
     console.print(Panel(
@@ -44,27 +24,12 @@ def run_interview(regenerate: bool = False) -> dict[str, Any] | None:
     ))
     console.print()
 
-    while True:
+    # Initial question
+    assistant_msg = session.get_initial_question()
+    _print_assistant(assistant_msg)
+
+    while not session.is_complete:
         try:
-            if not messages or messages[-1]["role"] == "user":
-                response = llm.chat(messages, temperature=0.7)
-                assistant_msg = response.content
-                messages.append({"role": "assistant", "content": assistant_msg})
-
-                if "[INTERVIEW_COMPLETE]" in assistant_msg:
-                    model = _extract_yaml(assistant_msg)
-                    if model:
-                        save_life_model(model)
-                        save_interview_to_obsidian(messages, model)
-                        _print_summary(model)
-                        return model
-                    else:
-                        console.print("[yellow]Could not parse life model. Let me ask a bit more...[/]")
-                        messages.append({"role": "user", "content": "Please provide the YAML life model again, making sure it is valid YAML."})
-                        continue
-
-                _print_assistant(assistant_msg)
-
             user_input = console.input("[bold green]You:[/] ").strip()
             if user_input.lower() in ("quit", "exit", "q"):
                 console.print("[yellow]Interview cancelled.[/]")
@@ -72,53 +37,23 @@ def run_interview(regenerate: bool = False) -> dict[str, Any] | None:
             if not user_input:
                 continue
 
-            messages.append({"role": "user", "content": user_input})
-
-            if len(messages) > 30:
-                messages = [_compress_history(messages)]
+            resp = session.respond(user_input)
+            
+            if resp == "INTERVIEW_COMPLETE":
+                _print_summary(session.model)
+                return session.model
+            
+            _print_assistant(resp)
 
         except KeyboardInterrupt:
             console.print("\n[yellow]Interview stopped.[/]")
             return None
 
-
 def _print_assistant(text: str):
-    clean = text.replace("[INTERVIEW_COMPLETE]", "").strip()
-    if clean:
+    if text:
         console.print()
-        console.print(Panel(clean, title="[bold]SelfHeal[/]", border_style="blue"))
+        console.print(Panel(text, title="[bold]SelfHeal[/]", border_style="blue"))
         console.print()
-
-
-def _extract_yaml(text: str) -> dict[str, Any] | None:
-    yaml_match = re.search(r"```yaml\s*\n(.*?)```", text, re.DOTALL)
-    if yaml_match:
-        try:
-            return yaml.safe_load(yaml_match.group(1))
-        except yaml.YAMLError:
-            pass
-
-    yaml_match = re.search(r"```\s*\n(.*?)```", text, re.DOTALL)
-    if yaml_match:
-        try:
-            return yaml.safe_load(yaml_match.group(1))
-        except yaml.YAMLError:
-            pass
-
-    return None
-
-
-def _compress_history(messages: list[dict[str, str]]) -> dict[str, str]:
-    history_text = ""
-    for m in messages:
-        role = m["role"]
-        content = m["content"][:300]
-        history_text += f"{role}: {content}\n"
-    return {
-        "role": "system",
-        "content": FOLLOW_UP_PROMPT.format(history=history_text),
-    }
-
 
 def _print_summary(model: dict[str, Any]):
     console.print()

@@ -1,148 +1,68 @@
 from __future__ import annotations
 
-import json
-import socket
+import httpx
+import logging
 from datetime import date
-from typing import Any
+from typing import Any, List, Optional
 
-from ..config import CONFIG_DIR
 from ..errors import DaemonError
 
-DAEMON_SOCKET_PATH = CONFIG_DIR / "daemon.sock"
-
+API_BASE_URL = "http://127.0.0.1:8282"
+logger = logging.getLogger(__name__)
 
 def is_daemon_running() -> bool:
     try:
-        daemon_send_cmd("ping", timeout=1.0)
+        daemon_request("GET", "/system/status", timeout=1.0)
         return True
-    except DaemonError:
+    except Exception:
         return False
 
-
-def daemon_send_cmd(cmd: str, *, timeout: float = 10.0, **kwargs: Any) -> dict[str, Any]:
+def daemon_request(method: str, path: str, timeout: float = 10.0, **kwargs: Any) -> Any:
+    """Core helper for making HTTP requests to the daemon."""
     try:
-        sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        sock.settimeout(timeout)
-        sock.connect(str(DAEMON_SOCKET_PATH))
-        try:
-            msg = json.dumps({"cmd": cmd, **kwargs}) + "\n"
-            sock.sendall(msg.encode())
-            resp = b""
-            data: dict[str, Any] | None = None
-            while True:
-                chunk = sock.recv(4096)
-                if not chunk:
-                    break
-                resp += chunk
-                try:
-                    data = json.loads(resp.decode())
-                    break
-                except json.JSONDecodeError:
-                    continue
-            else:
-                raise DaemonError("daemon returned no response")
-        finally:
-            sock.close()
-    except (OSError, TimeoutError) as exc:
-        raise DaemonError(f"daemon connection failed: {exc}") from exc
-    except json.JSONDecodeError as exc:
-        raise DaemonError(f"daemon returned invalid JSON: {exc}") from exc
+        with httpx.Client(base_url=API_BASE_URL, timeout=timeout) as client:
+            resp = client.request(method, path, **kwargs)
+            resp.raise_for_status()
+            return resp.json()
+    except Exception as exc:
+        raise DaemonError(f"Daemon connection failed: {exc}")
 
-    if not resp:
-        raise DaemonError("daemon returned no response")
-    if data is None or not isinstance(data, dict) or "ok" not in data:
-        raise DaemonError("daemon returned a malformed response")
-    if not data.get("ok", False):
-        raise DaemonError(str(data.get("error", "daemon command failed")))
-    return data
+def daemon_get_status() -> dict:
+    return daemon_request("GET", "/status")
 
+def daemon_get_tasks() -> List[dict]:
+    return daemon_request("GET", "/tasks")
 
-def daemon_send(cmd: str, **kwargs: Any) -> dict[str, Any]:
-    try:
-        return daemon_send_cmd(cmd, **kwargs)
-    except DaemonError as exc:
-        return {"ok": False, "error": str(exc)}
+def daemon_get_score() -> dict:
+    return daemon_request("GET", "/score")
 
+def daemon_get_next() -> Optional[dict]:
+    return daemon_request("GET", "/tasks/next")
 
-def daemon_refresh() -> bool:
-    r = daemon_send_cmd("refresh")
-    return r.get("ok", False)
+def daemon_add_task(name: str, **kwargs) -> int:
+    payload = {"name": name, **kwargs}
+    res = daemon_request("POST", "/tasks", json=payload)
+    return res.get("task_id")
 
+def daemon_toggle_task(task_id: int) -> dict:
+    return daemon_request("POST", f"/tasks/{task_id}/toggle")
 
-def daemon_regenerate() -> bool:
-    r = daemon_send_cmd("regenerate")
-    return r.get("ok", False)
+def daemon_sync_calendar() -> dict:
+    return daemon_request("POST", "/sync/calendar")
 
+def daemon_sync_clickup() -> dict:
+    return daemon_request("POST", "/sync/clickup")
 
-def daemon_sync_clickup() -> dict[str, Any]:
-    return daemon_send_cmd("sync_clickup").get("data", {})
+def daemon_sync_obsidian() -> dict:
+    return daemon_request("POST", "/sync/obsidian")
 
+def daemon_sync_all() -> dict:
+    return daemon_request("POST", "/sync")
 
-def daemon_sync_calendar() -> dict[str, Any]:
-    return daemon_send_cmd("sync_calendar").get("data", {})
+def daemon_generate_schedule(target_date: Optional[date] = None) -> List[dict]:
+    payload = {"date": target_date.isoformat()} if target_date else {}
+    res = daemon_request("POST", "/schedule/generate", json=payload)
+    return res.get("items", [])
 
-
-def daemon_sync_obsidian() -> dict[str, Any]:
-    return daemon_send_cmd("sync_obsidian").get("data", {})
-
-
-def daemon_sync_all() -> dict[str, Any]:
-    return daemon_send_cmd("sync_all").get("data", {})
-
-
-def daemon_add_task(
-    name: str,
-    priority: str = "medium",
-    emoji: str = "",
-    estimated_minutes: int = 30,
-    schedule: str = "daily",
-) -> int:
-    data = daemon_send_cmd(
-        "add_task",
-        name=name,
-        priority=priority,
-        emoji=emoji,
-        estimated_minutes=estimated_minutes,
-        schedule=schedule,
-    ).get("data", {})
-    return int(data["task_id"])
-
-
-def daemon_generate_schedule(target_date: date | str | None = None) -> list[dict[str, Any]]:
-    date_value = target_date.isoformat() if isinstance(target_date, date) else target_date
-    if date_value:
-        return daemon_send_cmd("generate_schedule", date=date_value).get("data", [])
-    return daemon_send_cmd("generate_schedule").get("data", [])
-
-
-def daemon_mark_task_done(task_id: int) -> dict[str, Any]:
-    return daemon_send_cmd("mark_task_done", task_id=task_id).get("data", {})
-
-
-def daemon_mark_task_pending(task_id: int) -> dict[str, Any]:
-    return daemon_send_cmd("mark_task_pending", task_id=task_id).get("data", {})
-
-
-def daemon_toggle_task(task_id: int) -> dict[str, Any]:
-    return daemon_send_cmd("toggle_task", task_id=task_id).get("data", {})
-
-
-def daemon_get_status() -> dict[str, Any]:
-    return daemon_send_cmd("status").get("data", {})
-
-
-def daemon_get_score() -> dict[str, Any]:
-    return daemon_send_cmd("get_score").get("data", {})
-
-
-def daemon_get_next() -> dict[str, Any] | None:
-    return daemon_send_cmd("get_next").get("data")
-
-
-def daemon_get_tasks() -> list[dict[str, Any]]:
-    return daemon_send_cmd("get_tasks").get("data", [])
-
-
-def daemon_stop() -> bool:
-    r = daemon_send_cmd("quit")
-    return r.get("ok", False)
+def daemon_regenerate() -> dict:
+    return daemon_request("POST", "/schedule/regenerate")

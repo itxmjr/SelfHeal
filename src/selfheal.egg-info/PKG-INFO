@@ -1,6 +1,6 @@
 Metadata-Version: 2.4
 Name: selfheal
-Version: 0.1.1.dev11
+Version: 0.1.1.dev14
 Summary: AI-driven life manager that tells you what to do, when, and in what order
 Author: SelfHeal maintainers
 License-Expression: MIT
@@ -31,6 +31,9 @@ Requires-Dist: google-auth-oauthlib>=1.0.0
 Requires-Dist: caldav>=1.0.0
 Requires-Dist: python-dotenv>=1.2.2
 Requires-Dist: Pillow>=10.0.0
+Requires-Dist: fastapi>=0.110.0
+Requires-Dist: uvicorn>=0.27.0
+Requires-Dist: pydantic>=2.6.0
 Dynamic: license-file
 
 # SelfHeal

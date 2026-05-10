@@ -244,7 +244,7 @@ def _refine_with_ai(
     today: date,
 ) -> Result[list[dict[str, Any]], str]:
     try:
-        llm = get_llm_with_fallback()
+        llm = get_llm_with_fallback(task_type="scheduling")
         prompt = SCHEDULER_PROMPT.format(
             life_model=yaml.dump(model),
             heuristic_schedule=json.dumps(heuristic_schedule, indent=2),

@@ -27,11 +27,26 @@ DEFAULT_CONFIG = {
             "model": "llama3.2",
             "base_url": "http://localhost:11434",
         },
+        "openai": {
+            "api_key": "",
+            "model": "gpt-4o",
+        },
+        "anthropic": {
+            "api_key": "",
+            "model": "claude-3-5-sonnet-20240620",
+        },
+        "routing": {
+            "scheduling": "anthropic",
+            "interview": "anthropic",
+            "analysis": "nim",
+            "fallback": "ollama",
+        },
     },
     "obsidian": {
         "vault_path": "",
     },
     "clickup": {
+        "api_token": "",
         "list_ids": [],
     },
     "wallpaper": {
@@ -57,8 +72,13 @@ def _apply_env_overrides(config: dict[str, Any]) -> dict[str, Any]:
     # to avoid overwriting YAML configs with empty/default env values
     if "SELFHEAL_LLM_PROVIDER" in os.environ:
         config["llm"]["provider"] = os.environ["SELFHEAL_LLM_PROVIDER"]
-    if "SELFHEAL_NIM_API_KEY" in os.environ:
-        config["llm"]["nim"]["api_key"] = os.environ["SELFHEAL_NIM_API_KEY"]
+    # LLM
+    if "NVIDIA_API_KEY" in os.environ:
+        config["llm"]["nim"]["api_key"] = os.environ["NVIDIA_API_KEY"]
+    if "OPENAI_API_KEY" in os.environ:
+        config["llm"]["openai"]["api_key"] = os.environ["OPENAI_API_KEY"]
+    if "ANTHROPIC_API_KEY" in os.environ:
+        config["llm"]["anthropic"]["api_key"] = os.environ["ANTHROPIC_API_KEY"]
     if "SELFHEAL_NIM_MODEL" in os.environ:
         config["llm"]["nim"]["model"] = os.environ["SELFHEAL_NIM_MODEL"]
     if "SELFHEAL_NIM_BASE_URL" in os.environ:
@@ -73,6 +93,8 @@ def _apply_env_overrides(config: dict[str, Any]) -> dict[str, Any]:
         config["obsidian"]["vault_path"] = os.environ["SELFHEAL_OBSIDIAN_VAULT_PATH"]
 
     # ClickUp
+    if "SELFHEAL_CLICKUP_API_TOKEN" in os.environ:
+        config["clickup"]["api_token"] = os.environ["SELFHEAL_CLICKUP_API_TOKEN"]
     if "SELFHEAL_CLICKUP_LIST_IDS" in os.environ:
         config["clickup"]["list_ids"] = [
             x.strip() for x in os.environ["SELFHEAL_CLICKUP_LIST_IDS"].split(",") if x.strip()

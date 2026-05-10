@@ -70,3 +70,4 @@ src/selfheal/tui/widgets/score_ring.py
 src/selfheal/tui/widgets/task_table.py
 src/selfheal/tui/widgets/timeline.py
 src/selfheal/wallpaper/__init__.py
+src/selfheal/wallpaper/generator.py

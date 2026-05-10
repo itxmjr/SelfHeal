@@ -102,7 +102,7 @@ def daemon_status():
     table.add_column("Property", style="bold")
     table.add_column("Value")
     table.add_row("PID", str(status.get("pid", "?")))
-    table.add_row("Socket", str(status.get("socket", "?")))
+    table.add_row("API URL", "http://127.0.0.1:8282")
     table.add_row("Started at", str(status.get("uptime", "?")))
     console.print(table)
 
