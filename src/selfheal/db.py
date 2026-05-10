@@ -1,5 +1,8 @@
+import logging
 import sqlite3
 from datetime import date
+
+logger = logging.getLogger(__name__)
 
 from .config import DB_PATH, ensure_dirs
 
@@ -131,20 +134,29 @@ def _migrate_to_v2(conn: sqlite3.Connection):
     )
 
 
-def _ensure_v2_indexes(conn: sqlite3.Connection):
-    conn.execute(
-        "CREATE UNIQUE INDEX IF NOT EXISTS idx_tasks_source_external_id "
-        "ON tasks(source, external_id) WHERE external_id IS NOT NULL"
-    )
+MIGRATIONS = [
+    _migrate_to_v2,
+]
 
+def _ensure_indexes(conn: sqlite3.Connection, version: int):
+    if version >= 2:
+        conn.execute(
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_tasks_source_external_id "
+            "ON tasks(source, external_id) WHERE external_id IS NOT NULL"
+        )
 
 def run_migrations(conn: sqlite3.Connection):
     version = _get_schema_version(conn)
-    if version < 2:
-        _migrate_to_v2(conn)
-        _set_schema_version(conn, 2)
-    if version <= 2:
-        _ensure_v2_indexes(conn)
+    
+    for i, migration_fn in enumerate(MIGRATIONS, start=1):
+        target_version = i + 1
+        if version < target_version:
+            logger.info("Migrating database to version %d...", target_version)
+            migration_fn(conn)
+            _set_schema_version(conn, target_version)
+            version = target_version
+            
+    _ensure_indexes(conn, version)
     conn.commit()
 
 
