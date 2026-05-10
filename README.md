@@ -1,117 +1,68 @@
 # SelfHeal
 
-**SelfHeal** is a minimalist, AI-driven personal productivity daemon and command center. It acts as an autonomous life manager: it interviews you to build a "Life Model," schedules your day dynamically around your existing calendar commitments, continuously adjusts to your rhythm, and provides a polished Terminal UI (TUI) to track your progress.
+**SelfHeal** is a minimalist, AI-driven personal life orchestrator. It acts as an autonomous digital manager: it interviews you to build a "Life Model," schedules your day dynamically around your existing calendar commitments, and provides a polished Dashboard to track your progress.
 
 ## Core Features
-*   **🧠 Life Model Intake:** An interactive CLI interview maps out your core goals, priorities, and available hours.
-*   **🤖 AI-Assisted Scheduling:** Uses local (Ollama) or remote (NVIDIA NIM) LLMs to intelligently slot tasks into your daily schedule based on priority, duration, and dependencies.
-*   **📅 Calendar Integration:** Full two-way awareness using Google Calendar (OAuth) or generic CalDAV. Scheduled events act as hard blockers for the AI engine.
-*   **🖥️ Command Center TUI:** A responsive Textual-based terminal dashboard to visualize your timeline, history, and productivity score.
-*   **⚡ Background Daemon:** A lightweight systemd-compatible background process that automatically syncs calendars, regenerates schedules at dawn, and issues desktop notifications.
-*   **📝 Obsidian Sync:** Automatically exports daily performance reports and schedules as markdown notes into your Obsidian vault.
-*   **👁️ Vision Tasks:** Snap a photo of a whiteboard or handwritten to-do list, and SelfHeal uses vision models to extract them into actionable tasks.
+*   **🧠 Life Model Intake:** An interactive interview (CLI or Web) maps out your core goals, priorities, and available hours.
+*   **🤖 AI-Assisted Scheduling:** Uses Claude 3.5, GPT-4o, or local Ollama to intelligently slot tasks into your daily schedule based on priority, duration, and energy alignment.
+*   **⚛️ "Memento Mori" Dashboard:** A stunning, responsive web dashboard that visualizes your life minute-by-minute through an interactive "Life Arc."
+*   **🖥️ Desktop Shell (Tauri):** A native desktop application that bundles the dashboard and background daemon into a single experience.
+*   **📅 Deep Integrations:** Full two-way synchronization with ClickUp (Tasks), Google Calendar (Schedule), and Obsidian (Journaling).
+*   **⚡ Background Intelligence:** A lightweight FastAPI-powered daemon that autonomously syncs calendars, regenerates schedules, and breaking down large tasks into atomic blocks.
 
 ---
 
 ## 🚀 Installation & Setup
 
-SelfHeal requires Python 3.11+. The recommended way to install it is using `pipx` to isolate dependencies:
-
-```bash
-pipx install selfheal
-```
-
-For local development, use `uv` to create the environment from the repository checkout:
-
-```bash
-uv sync
-```
+### 1. Prerequisites
+- Python 3.11+
+- Node.js & npm (for the Dashboard)
+- Rust (if building the Desktop App)
 
 ### 2. Configure Environment
-Copy the example environment file and customize it to enable specific LLMs, Calendars, and features:
+Copy the example environment file and customize it:
 ```bash
 cp .env.example .env
-# Edit .env with your favorite editor
-nano .env
-```
-*(By default, SelfHeal will attempt to use NVIDIA NIM as the provider, but Ollama is highly recommended for full privacy).*
-
-### 3. Initialize Your Life Model
-Run the interview to let the AI learn about your goals and schedule.
-
-```bash
-selfheal interview
+# Add your API keys for Anthropic, OpenAI, or ClickUp
 ```
 
-From a development checkout, use:
-
+### 3. Build & Run
+**Backend (FastAPI Daemon):**
 ```bash
-uv run selfheal interview
+uv sync
+uv run selfheal daemon start
 ```
 
-### 4. Authenticate Calendar (Optional but recommended)
-If you are using Google Calendar:
-1. Place your Google Cloud API `credentials.json` into `~/.config/selfheal/google_credentials.json`.
-2. Run the authentication flow:
+**Frontend (Next.js Dashboard):**
 ```bash
-uv run selfheal calendar auth
+cd dashboard
+npm install
+npm run dev
 ```
 
 ---
 
 ## 💻 Usage
 
-The default command opens the Terminal UI:
-
-```bash
-selfheal
-```
-
-From a development checkout, use:
-
-```bash
-uv run selfheal
-```
+### The Dashboard
+Access the "Memento Mori" dashboard at `http://localhost:3000`. This is the primary interface for visualizing your daily arc and productivity score.
 
 ### CLI Commands
-SelfHeal features a rich CLI for quick operations.
-
-**Task Management:**
-*   `selfheal today` - View today's schedule and score.
-*   `selfheal next` - View the immediate next action to take.
-*   `selfheal add "Read 20 pages" --priority high` - Quickly inject a task.
-*   `selfheal done "Read"` - Mark a task as done using fuzzy matching.
-*   `selfheal vision /path/to/photo.jpg` - Extract tasks from an image.
-
-**Daemon Management:**
-SelfHeal requires a background daemon to sync calendars and regenerate schedules autonomously.
-*   `selfheal daemon start` - Start the daemon in the background (works on macOS and Linux).
-*   `selfheal daemon stop` - Stop the background daemon.
-*   `selfheal daemon status` - Check if the background daemon is running.
-*   `selfheal daemon install` - (Linux only) Installs and starts the `systemd` user service for persistent background execution.
-
-**Sync & Integrations:**
-*   `selfheal sync` - Force an immediate sync across CalDAV/Google, Obsidian, and Wallpaper engines.
-*   `selfheal calendar sync` - Pull calendar events into the local timeline.
+*   `selfheal today` - View today's schedule and score in the terminal.
+*   `selfheal interview` - Start the life-model intake interview.
+*   `selfheal sync` - Force an immediate sync across all integrations.
 
 ---
 
-## 🛠️ Architecture
-
-SelfHeal is highly modularized under the `src/selfheal/` package:
-*   `cli/` - Typer-based subcommand structure.
-*   `tui/` - Textual application and widgets (Dashboard, Schedule, History).
-*   `engine/` - AI Scheduling prompts, Heuristic fallback logic, and the Daily Scorer.
-*   `daemon/` - Unix socket IPC server and background task loops.
-*   `calendar/` - Provider abstractions for Google and CalDAV.
-
-Configuration lives in `~/.config/selfheal/`, and databases/logs live in `~/.local/share/selfheal/`.
+## 🛠️ Layered Architecture
+SelfHeal v1 follows a professional layered architecture:
+*   **`src/selfheal/models/`**: Strict Pydantic schemas for data validation.
+*   **`src/selfheal/repositories/`**: Isolated database access layer.
+*   **`src/selfheal/services/`**: Modular business logic (Scheduling, Sync, Tasks).
+*   **`src/selfheal/api/`**: FastAPI routers for Web/Desktop communication.
+*   **`src/selfheal/workers/`**: Autonomous background task orchestration.
 
 ---
 
-## 🤝 Contributing
-
-Contributions are welcome! Please ensure you run the test suite before submitting pull requests:
-```bash
-uv run pytest -v
-```
+## 🤝 Memento Mori.
+Make every minute count.
