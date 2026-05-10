@@ -45,7 +45,7 @@ def test_daemon_generate_schedule_command_updates_status(monkeypatch):
 
     def fake_generate(target_date):
         calls.append(target_date)
-        return [{"name": "Scheduled"}]
+        return [{"name": "Scheduled"}], True
 
     monkeypatch.setattr(service, "generate_schedule_task", fake_generate)
 

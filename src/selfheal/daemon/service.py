@@ -50,6 +50,7 @@ class DaemonServer:
         self._clients: list[socket.socket] = []
         self._started_at = datetime.now()
         self._last_schedule_generated: str | None = None
+        self._last_schedule_ai_success: bool | None = None
         self._last_calendar_sync: datetime | None = None
         self._last_clickup_sync: datetime | None = None
         self._last_wallpaper_update: datetime | None = None
@@ -132,8 +133,9 @@ class DaemonServer:
                 return {"ok": True, "data": data}
             if cmd in ("generate_schedule", "regenerate"):
                 target_date = self._date_from_message(msg)
-                schedule = generate_schedule_task(target_date)
+                schedule, ai_success = generate_schedule_task(target_date)
                 self._last_schedule_generated = target_date.isoformat()
+                self._last_schedule_ai_success = ai_success
                 data: Any = schedule if cmd == "generate_schedule" else "schedule regenerated"
                 return {"ok": True, "data": data}
             if cmd == "add_task":
@@ -174,6 +176,7 @@ class DaemonServer:
             "uptime": self._uptime(),
             "started_at": self._started_at.isoformat(),
             "last_schedule": self._last_schedule_generated,
+            "last_schedule_ai_success": getattr(self, "_last_schedule_ai_success", None),
             "last_calendar_sync": self._format_time(self._last_calendar_sync),
             "last_clickup_sync": self._format_time(self._last_clickup_sync),
             "last_wallpaper_update": self._format_time(self._last_wallpaper_update),
@@ -219,8 +222,9 @@ class DaemonServer:
             now.hour >= SCHEDULE_HOUR and self._last_schedule_generated != today_str
         )
         if should_generate and model:
-            generate_schedule_task()
+            _, ai_success = generate_schedule_task()
             self._last_schedule_generated = today_str
+            self._last_schedule_ai_success = ai_success
 
     def _check_notify(self, model, now: datetime, force: bool) -> None:
         if not model:

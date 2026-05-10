@@ -57,9 +57,9 @@ def generate_schedule(
     task_candidates: list[dict[str, Any]],
     calendar_events: list[dict[str, Any]] | None,
     use_ai: bool,
-) -> list[dict[str, Any]]:
+) -> tuple[list[dict[str, Any]], bool]:
     if not life_model or not task_candidates:
-        return []
+        return [], False
 
     hours = get_available_hours(life_model, calendar_events=calendar_events)
     free_slots = [h for h in hours if h["status"] in ("free", "peak", "low")]
@@ -96,14 +96,16 @@ def generate_schedule(
 
     schedule.sort(key=lambda item: item["start_hour"])
 
+    ai_success = False
     if use_ai:
         refinement = _refine_with_ai(life_model, schedule, today)
         if refinement.is_ok():
             schedule = refinement.value
+            ai_success = True
         else:
             logger.warning("AI schedule refinement failed; using heuristic schedule: %s", refinement.error)
 
-    return schedule
+    return schedule, ai_success
 
 
 def schedule_item_to_db(
@@ -165,18 +167,18 @@ def generate_and_persist_schedule(
     task_candidates: list[dict[str, Any]] | None = None,
     calendar_events: list[dict[str, Any]] | None = None,
     use_ai: bool = True,
-) -> list[dict[str, Any]]:
+) -> tuple[list[dict[str, Any]], bool]:
     target_date = today or date.today()
     model = life_model if life_model is not None else load_life_model()
     if not model:
-        return []
+        return [], False
 
     conn = get_connection()
     try:
         candidates = task_candidates
         if candidates is None:
             candidates = get_schedule_task_candidates(conn, model, target_date)
-        schedule = generate_schedule(
+        schedule, ai_success = generate_schedule(
             today=target_date,
             life_model=model,
             task_candidates=candidates,
@@ -184,7 +186,7 @@ def generate_and_persist_schedule(
             use_ai=use_ai,
         )
         persist_schedule(schedule, target_date, conn)
-        return schedule
+        return schedule, ai_success
     finally:
         conn.close()
 
@@ -436,11 +438,11 @@ def regenerate_schedule(
     today: date | None = None,
     calendar_events: list[dict[str, Any]] | None = None,
     current_hour: int | None = None,
-) -> list[dict[str, Any]]:
+) -> tuple[list[dict[str, Any]], bool]:
     target_date = today or date.today()
     model = load_life_model()
     if not model:
-        return []
+        return [], False
 
     conn = get_connection()
     try:
@@ -456,7 +458,7 @@ def regenerate_schedule(
         ]
 
         if not remaining:
-            return []
+            return [], False
 
         task_candidates = [_candidate_from_task(task) for task in remaining]
         sleep = model.get("sleep", {})
@@ -468,7 +470,7 @@ def regenerate_schedule(
             },
         }
 
-        new_schedule = generate_schedule(
+        new_schedule, ai_success = generate_schedule(
             today=target_date,
             life_model=future_model,
             task_candidates=task_candidates,
@@ -476,6 +478,6 @@ def regenerate_schedule(
             use_ai=False,
         )
         persist_schedule(new_schedule, target_date, conn)
-        return new_schedule
+        return new_schedule, ai_success
     finally:
         conn.close()

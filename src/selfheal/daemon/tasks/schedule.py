@@ -12,7 +12,7 @@ def collect_calendar_events(target_date: date) -> list[dict[str, Any]]:
     return list_all_events(target_date, target_date)
 
 
-def generate_schedule_task(target_date: date | None = None) -> list[dict[str, Any]]:
+def generate_schedule_task(target_date: date | None = None) -> tuple[list[dict[str, Any]], bool]:
     """Generate and persist the schedule for a date using explicit calendar events."""
     schedule_date = target_date or date.today()
     model = load_life_model()
@@ -20,14 +20,14 @@ def generate_schedule_task(target_date: date | None = None) -> list[dict[str, An
         return []
 
     events = collect_calendar_events(schedule_date)
-    schedule = generate_and_persist_schedule(
+    schedule, ai_success = generate_and_persist_schedule(
         today=schedule_date,
         life_model=model,
         calendar_events=events,
-        use_ai=False,
+        use_ai=True,
     )
     annotate_clickup_schedule(schedule)
-    return schedule
+    return schedule, ai_success
 
 
 def annotate_clickup_schedule(schedule: list[dict[str, Any]]) -> None:

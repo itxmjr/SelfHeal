@@ -22,7 +22,7 @@ def today():
         console.print("[red]No life model found. Run 'selfheal interview' first.[/]")
         raise typer.Exit(1)
 
-    schedule = generate_and_persist_schedule(life_model=model, calendar_events=[])
+    schedule, _ = generate_and_persist_schedule(life_model=model, calendar_events=[])
     if not schedule:
         console.print("[yellow]No schedule generated. Check your life model.[/]")
         raise typer.Exit(0)

@@ -520,8 +520,17 @@ Example: [{"name": "Buy milk", "emoji": "🥛", "priority": "medium", "estimated
         if self._daemon_connected:
             pid = self._daemon_status.get("pid", "?")
             last_schedule = self._daemon_status.get("last_schedule") or "never"
+            
+            ai_success = self._daemon_status.get("last_schedule_ai_success")
+            if ai_success is True:
+                ai_status = "[bold green]AI Online[/]"
+            elif ai_success is False:
+                ai_status = "[bold yellow]AI Offline (Heuristic Fallback)[/]"
+            else:
+                ai_status = "[dim]AI Unknown[/]"
+                
             last_sync = self._daemon_status.get("last_calendar_sync") or "never"
-            status_line.update(f"Daemon: connected pid={pid} | schedule={last_schedule} | calendar={last_sync}")
+            status_line.update(f"Daemon: connected pid={pid} | schedule={last_schedule} ({ai_status}) | calendar={last_sync}")
         else:
             status_line.update("Daemon: offline | local reads enabled | schedule mutations disabled")
 

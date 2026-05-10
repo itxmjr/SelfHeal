@@ -36,7 +36,7 @@ class _ConnectionProxy:
 
 
 def test_generate_schedule_returns_empty_for_empty_candidates():
-    result = scheduler.generate_schedule(
+    result, _ = scheduler.generate_schedule(
         today=date.today(),
         life_model=_life_model(),
         task_candidates=[],
@@ -52,7 +52,7 @@ def test_generate_schedule_respects_calendar_blockers():
     blocked_start = f"{today.isoformat()}T09:00:00"
     blocked_end = f"{today.isoformat()}T10:00:00"
 
-    result = scheduler.generate_schedule(
+    result, _ = scheduler.generate_schedule(
         today=today,
         life_model=_life_model(),
         task_candidates=[_candidate("Critical", "critical")],
@@ -64,7 +64,7 @@ def test_generate_schedule_respects_calendar_blockers():
 
 
 def test_generate_schedule_sorts_priority_into_peak_before_low():
-    result = scheduler.generate_schedule(
+    result, _ = scheduler.generate_schedule(
         today=date.today(),
         life_model=_life_model(),
         task_candidates=[_candidate("Low", "low"), _candidate("High", "high")],
@@ -79,7 +79,7 @@ def test_generate_schedule_sorts_priority_into_peak_before_low():
 
 
 def test_generate_schedule_returns_empty_without_life_model():
-    result = scheduler.generate_schedule(
+    result, _ = scheduler.generate_schedule(
         today=date.today(),
         life_model=None,
         task_candidates=[_candidate("Task")],
@@ -145,13 +145,13 @@ def test_generate_and_persist_schedule_does_not_duplicate_life_model_goals(monke
 
     monkeypatch.setattr(scheduler, "get_connection", lambda: _ConnectionProxy(temp_db))
 
-    first_schedule = scheduler.generate_and_persist_schedule(
+    first_schedule, _ = scheduler.generate_and_persist_schedule(
         today=target_date,
         life_model=life_model,
         calendar_events=[],
         use_ai=False,
     )
-    second_schedule = scheduler.generate_and_persist_schedule(
+    second_schedule, _ = scheduler.generate_and_persist_schedule(
         today=target_date,
         life_model=life_model,
         calendar_events=[],
@@ -192,7 +192,7 @@ def test_regenerate_schedule_reschedules_pending_future_tasks(monkeypatch, temp_
     monkeypatch.setattr(scheduler, "load_life_model", _life_model)
     monkeypatch.setattr(scheduler, "get_connection", lambda: _ConnectionProxy(temp_db))
 
-    result = scheduler.regenerate_schedule(target_date, calendar_events=[], current_hour=9)
+    result, _ = scheduler.regenerate_schedule(target_date, calendar_events=[], current_hour=9)
 
     assert [item["name"] for item in result] == ["Future"]
     tasks = get_todays_tasks(temp_db, target_date.isoformat())
@@ -211,7 +211,7 @@ def test_generate_schedule_task_adds_clickup_scheduled_comment(monkeypatch):
     monkeypatch.setattr(
         schedule_task,
         "generate_and_persist_schedule",
-        lambda **kwargs: [
+        lambda **kwargs: ([
             {
                 "name": "ClickUp Task",
                 "source": "clickup",
@@ -219,11 +219,11 @@ def test_generate_schedule_task_adds_clickup_scheduled_comment(monkeypatch):
                 "start_hour": 9,
                 "end_hour": 10,
             }
-        ],
+        ], True),
     )
     monkeypatch.setattr(schedule_task, "add_clickup_task_comment", lambda task_id, comment: comments.append((task_id, comment)))
 
-    result = schedule_task.generate_schedule_task(date(2026, 5, 4))
+    result, _ = schedule_task.generate_schedule_task(date(2026, 5, 4))
 
     assert result[0]["external_id"] == "cu_123"
     assert comments == [("cu_123", "Scheduled by SelfHeal: 09:00-10:00")]

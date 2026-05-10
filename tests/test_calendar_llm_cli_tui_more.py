@@ -329,11 +329,11 @@ def test_cli_task_commands(monkeypatch, temp_db):
         cli_tasks.next_action()
 
     monkeypatch.setattr(cli_tasks, 'load_life_model', lambda: {'sleep': {}})
-    monkeypatch.setattr(cli_tasks, 'generate_and_persist_schedule', lambda **kwargs: [])
+    monkeypatch.setattr(cli_tasks, 'generate_and_persist_schedule', lambda **kwargs: ([], False))
     with pytest.raises(typer.Exit):
         cli_tasks.today()
 
-    monkeypatch.setattr(cli_tasks, 'generate_and_persist_schedule', lambda **kwargs: [{'start_hour': 9, 'end_hour': 10, 'emoji': 'R', 'name': 'Read', 'priority': 'high', 'status': 'done'}])
+    monkeypatch.setattr(cli_tasks, 'generate_and_persist_schedule', lambda **kwargs: ([{'start_hour': 9, 'end_hour': 10, 'emoji': 'R', 'name': 'Read', 'priority': 'high', 'status': 'done'}], True))
     monkeypatch.setattr(cli_tasks, 'calculate_score', lambda: {'score': 82, 'done': 1, 'total': 1, 'streak': 2, 'task_completion': 40, 'time_utilization': 20, 'goal_alignment': 15, 'consistency_bonus': 7})
     cli_tasks.today()
     assert prints.items
@@ -483,7 +483,7 @@ def test_daemon_service_remaining_command_and_task_branches(monkeypatch, temp_db
 
     checks = []
     server2 = DaemonServer()
-    monkeypatch.setattr(service, 'generate_schedule_task', lambda target_date=None: checks.append(('schedule', target_date)))
+    monkeypatch.setattr(service, 'generate_schedule_task', lambda target_date=None: (checks.append(('schedule', target_date)) or [], True))
     server2._check_morning_generation({'sleep': {}}, now.replace(hour=7), True)
     monkeypatch.setattr(service, 'check_overdue_tasks', lambda: checks.append(('overdue', None)))
     server2._check_notify({'sleep': {}}, now, True)
