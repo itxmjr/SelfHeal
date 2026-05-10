@@ -225,6 +225,8 @@ class DaemonServer:
             _, ai_success = generate_schedule_task()
             self._last_schedule_generated = today_str
             self._last_schedule_ai_success = ai_success
+            # Trigger immediate obsidian sync after new schedule
+            obsidian_sync_task()
 
     def _check_notify(self, model, now: datetime, force: bool) -> None:
         if not model:

@@ -10,6 +10,7 @@ from rich.text import Text
 
 from ..config import save_life_model, load_life_model
 from ..llm import get_llm_with_fallback
+from ..obsidian import save_interview_to_obsidian
 from .prompts import SYSTEM_PROMPT, FOLLOW_UP_PROMPT, REGENERATE_PROMPT
 
 console = Console()
@@ -54,6 +55,7 @@ def run_interview(regenerate: bool = False) -> dict[str, Any] | None:
                     model = _extract_yaml(assistant_msg)
                     if model:
                         save_life_model(model)
+                        save_interview_to_obsidian(messages, model)
                         _print_summary(model)
                         return model
                     else:

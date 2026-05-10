@@ -268,6 +268,11 @@ def sync_cmd():
     _ensure_init()
     console.print("[cyan]Syncing calendar...[/]")
     status = check_auth_status()
+    if status.get("clickup"):
+        from ..daemon.tasks.sync import sync_clickup_task
+        sync_clickup_task()
+        console.print("[green]ClickUp sync complete.[/]")
+    
     if status.get("caldav"):
         events = list_calendar_events(Provider.CALDAV, date.today(), date.today())
         console.print(f"[green]Loaded {len(events)} CalDAV calendar event(s).[/]")
@@ -284,6 +289,20 @@ def sync_cmd():
     console.print("[cyan]Updating wallpaper data...[/]")
     update_wallpaper_data()
     console.print("[green]All sync operations complete.[/]")
+
+
+@app.command(name="obsidian")
+def obsidian_cmd(sub: str = typer.Argument(..., help="Subcommand: sync")):
+    """Obsidian integration commands."""
+    _ensure_init()
+    if sub == "sync":
+        if sync_to_obsidian():
+            console.print("[green]Obsidian sync complete.[/]")
+        else:
+            console.print("[yellow]Obsidian sync skipped (check vault_path in config).[/]")
+    else:
+        console.print(f"[red]Unknown obsidian subcommand: {sub}[/]")
+        raise typer.Exit(1)
 
 @app.command()
 def import_mjr():

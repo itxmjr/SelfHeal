@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
+import yaml
 
-from ..config import load_config
+from ..config import load_config, load_life_model
 from ..db import get_connection, get_todays_tasks, get_score
 
 def sync_to_obsidian():
@@ -44,15 +45,30 @@ def generate_daily_report(target_date: date) -> str:
     ]
     
     if score_data:
+        sc = score_data['score']
+        mood = "On Track" if sc >= 70 else "Recovering" if sc >= 40 else "Needs Focus"
         lines.extend([
-            f"- **Score:** {score_data['score']:.0f}/100",
-            f"- **Task Completion:** {score_data['task_completion']}/40",
-            f"- **Time Utilization:** {score_data['time_utilization']}/30",
-            f"- **Goal Alignment:** {score_data['goal_alignment']}/20",
-            f"- **Consistency Bonus:** {score_data['consistency_bonus']}/10",
+            f"- **Mood:** {mood}",
+            f"- **Overall Score:** {sc:.0f}/100",
+            f"  - Task Completion: {score_data['task_completion']}/40",
+            f"  - Time Utilization: {score_data['time_utilization']}/30",
+            f"  - Goal Alignment: {score_data['goal_alignment']}/20",
+            f"  - Consistency Bonus: {score_data['consistency_bonus']}/10",
         ])
     else:
         lines.append("- *No score data available yet.*")
+        
+    model = load_life_model()
+    if model:
+        energy = model.get("energy", {})
+        sleep = model.get("sleep", {})
+        lines.extend([
+            "",
+            "## Life Model Context",
+            f"- **Sleep Window:** {sleep.get('wake', '--:--')} - {sleep.get('bed', '--:--')}",
+            f"- **Energy Peaks:** {energy.get('peak', 'N/A')}",
+            f"- **Energy Lows:** {energy.get('low', 'N/A')}",
+        ])
         
     lines.extend([
         "",
@@ -75,3 +91,56 @@ def generate_daily_report(target_date: date) -> str:
     ])
     
     return "\n".join(lines)
+
+
+def save_interview_to_obsidian(messages: list[dict[str, str]], model: dict[str, Any] | None = None) -> bool:
+    """Save an interview transcript to Obsidian."""
+    config = load_config()
+    vault_path_str = config.get("obsidian", {}).get("vault_path")
+    if not vault_path_str:
+        return False
+    
+    vault_path = Path(vault_path_str).expanduser().resolve()
+    if not vault_path.exists():
+        return False
+    
+    interviews_dir = vault_path / "SelfHeal" / "Interviews"
+    interviews_dir.mkdir(parents=True, exist_ok=True)
+    
+    today = date.today()
+    timestamp = datetime.now().strftime("%H-%M-%S")
+    note_path = interviews_dir / f"Interview_{today.isoformat()}_{timestamp}.md"
+    
+    lines = [
+        f"# SelfHeal Interview - {today.isoformat()}",
+        "",
+        "## Summary",
+        f"- **Date:** {today.isoformat()}",
+        f"- **Model Version:** {model.get('version', '1.0') if model else 'N/A'}",
+        "",
+        "## Transcript",
+        "",
+    ]
+    
+    for m in messages:
+        role = m["role"].capitalize()
+        content = m["content"]
+        if role == "System":
+            continue
+        lines.append(f"### {role}")
+        lines.append(content)
+        lines.append("")
+        
+    if model:
+        lines.extend([
+            "---",
+            "## Resulting Life Model",
+            "```yaml",
+            yaml.dump(model, default_flow_style=False),
+            "```",
+        ])
+        
+    with open(note_path, "w") as f:
+        f.write("\n".join(lines))
+    
+    return True
